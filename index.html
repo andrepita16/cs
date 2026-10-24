@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta property="og:title" content="CS hoje à noite?">
+<meta property="og:description" content="Falta gente para fechar o 5-stack. Entras?">
+<title>Lobby de Hoje</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600;700&family=Share+Tech+Mono&display=swap">
+<style>
+/* Layout: HUD de CS — ecrã de lobby com kill feed no topo, convite ao centro, botões tipo buy menu */
+:root{
+  --bg:#0d1014; --panel:#161b21; --line:#2a323c;
+  --fg:#e8e4d8; --muted:#8b939c;
+  --ct:#5d9cec; --t:#e0a841; --red:#e2483d; --green:#7bc950;
+  --display:"Teko","Impact","Arial Narrow",sans-serif;
+  --mono:"Share Tech Mono",ui-monospace,"Consolas",monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(224,168,65,.12), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 3px),
+    var(--bg);
+  color:var(--fg); font-family:var(--mono);
+  padding-left:max(16px, env(safe-area-inset-left,0px));
+  padding-right:max(16px, env(safe-area-inset-right,0px));
+  padding-block:24px;
+  display:flex; justify-content:center; align-items:flex-start;
+}
+.wrap{width:100%; max-width:620px; display:flex; flex-direction:column; gap:18px}
+
+.feed{display:flex; flex-direction:column; align-items:flex-end; gap:4px; min-height:84px}
+.kill{
+  background:rgba(0,0,0,.55); border:1px solid rgba(226,72,61,.0);
+  padding:3px 10px; font-size:13px; display:flex; gap:8px; align-items:center;
+  animation:slide .35s ease-out;
+}
+.kill.me{border-color:var(--red)}
+.kill .a{color:var(--ct)} .kill .v{color:var(--t)} .kill .w{color:var(--muted)}
+@keyframes slide{from{transform:translateX(20px);opacity:.3}to{transform:none;opacity:1}}
+
+.card{background:var(--panel); border:1px solid var(--line); padding:22px 22px 24px; position:relative}
+.card::before{content:""; position:absolute; inset:0 0 auto 0; height:3px; background:linear-gradient(90deg,var(--ct) 0 50%,var(--t) 50% 100%)}
+.eyebrow{font-size:12px; letter-spacing:.18em; color:var(--muted); text-transform:uppercase}
+h1{
+  font-family:var(--display); font-weight:700; font-size:clamp(46px,12vw,82px);
+  line-height:.85; margin:10px 0 6px; letter-spacing:.01em; text-transform:uppercase;
+  text-wrap:balance;
+}
+h1 span{color:var(--t)}
+.sub{color:var(--muted); font-size:15px; line-height:1.5; margin:0 0 18px; max-width:46ch}
+
+.info{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line); margin-bottom:22px}
+.info div{background:var(--bg); padding:10px 12px}
+.info b{display:block; font-family:var(--display); font-weight:600; font-size:26px; line-height:1; color:var(--fg)}
+.info small{font-size:11px; letter-spacing:.14em; color:var(--muted); text-transform:uppercase}
+
+.slots{display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-bottom:24px}
+.slot{border:1px dashed var(--line); aspect-ratio:1; max-width:100%; display:grid; place-items:center; font-size:11px; color:var(--muted); text-align:center; padding:4px}
+.slot.on{border:1px solid var(--green); color:var(--green); background:rgba(123,201,80,.07)}
+
+.buttons{display:flex; gap:12px; flex-wrap:wrap; position:relative; min-height:64px}
+button{
+  font-family:var(--display); font-weight:600; font-size:28px; letter-spacing:.06em;
+  text-transform:uppercase; border:0; cursor:pointer; padding:10px 26px 6px;
+  transition:transform .12s ease, background .15s;
+}
+button:focus-visible{outline:2px solid var(--fg); outline-offset:3px}
+#sim{background:var(--green); color:#0d1014; flex:1 1 200px}
+#sim:hover{transform:translateY(-2px); background:#8fdc62}
+#nao{background:transparent; color:var(--muted); border:1px solid var(--line); flex:0 0 auto; position:relative}
+#nao:hover{color:var(--red); border-color:var(--red)}
+
+.taunt{
+  position:absolute; bottom:calc(100% + 10px); right:0;
+  background:var(--red); color:#fff; font-family:var(--display); font-weight:600;
+  font-size:24px; line-height:1; padding:8px 12px 4px; white-space:nowrap;
+  pointer-events:none; opacity:0; transform:translateY(6px) rotate(-2deg);
+  transition:opacity .12s, transform .12s; z-index:5;
+}
+.taunt::after{content:""; position:absolute; top:100%; right:22px; border:7px solid transparent; border-top-color:var(--red)}
+.taunt.show{opacity:1; transform:translateY(0) rotate(-2deg)}
+
+.done{display:none; border:1px solid var(--green); background:rgba(123,201,80,.08); padding:14px 16px; margin-top:18px}
+.done.show{display:block}
+.done b{font-family:var(--display); font-size:30px; color:var(--green); font-weight:600; display:block; line-height:1}
+.done span{color:var(--muted); font-size:13px}
+
+#nao.fled{position:fixed; z-index:50; background:var(--panel); transition:left .18s ease-out, top .18s ease-out, color .15s, border-color .15s}
+.taunt.below{bottom:auto; top:calc(100% + 10px)}
+.taunt.below::after{top:auto; bottom:100%; border-top-color:transparent; border-bottom-color:var(--red)}
+.slot{overflow:hidden; word-break:break-all}
+.bench{margin:-14px 0 20px; font-size:12px; color:var(--muted)}
+.join{display:flex; flex-direction:column; gap:8px}
+.join label{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+.join .row{display:flex; gap:8px; flex-wrap:wrap}
+.join input{flex:1 1 180px; min-width:0; background:var(--bg); color:var(--fg); border:1px solid var(--line); font-family:var(--mono); font-size:16px; padding:10px 12px}
+.join input:focus{outline:none; border-color:var(--green)}
+.join button{background:var(--green); color:#0d1014; padding:8px 22px 4px}
+.err{color:var(--red); font-size:13px}
+.wa{display:inline-block; margin-top:12px; background:var(--green); color:#0d1014; font-family:var(--display); font-weight:600; font-size:22px; letter-spacing:.05em; text-transform:uppercase; text-decoration:none; padding:8px 18px 4px}
+.wa:hover{background:#8fdc62}
+.leave{display:inline-block; margin-top:10px; font-family:var(--mono); font-size:12px; letter-spacing:0; text-transform:none; background:none; color:var(--muted); border:1px solid var(--line); padding:6px 10px}
+.leave:hover{color:var(--red); border-color:var(--red)}
+.roster{background:var(--panel); border:1px solid var(--line)}
+.roster-head{display:flex; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--line); font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+#count{color:var(--green); font-variant-numeric:tabular-nums}
+.roster ol{list-style:none; margin:0; padding:0}
+.roster li{display:flex; justify-content:space-between; gap:12px; padding:9px 14px; border-bottom:1px solid var(--line); font-size:15px}
+.roster li:last-child{border-bottom:0}
+.roster li .n{color:var(--fg); min-width:0; overflow-wrap:anywhere}
+.roster li .t{color:var(--muted); font-size:13px; font-variant-numeric:tabular-nums; white-space:nowrap}
+.roster li.empty{color:var(--muted); font-size:13px}
+.roster li.you .n::after{content:" (tu)"; color:var(--green)}
+footer{color:var(--muted); font-size:12px; text-align:right}
+@media (max-width:420px){ .info b{font-size:22px} button{font-size:24px} .taunt{font-size:20px} }
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important} }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="feed" id="feed" aria-live="polite"></div>
+
+  <main class="card">
+    <div class="eyebrow">Convite recebido · Matchmaking</div>
+    <h1>CS hoje<br><span>à noite?</span></h1>
+    <p class="sub">Falta gente para fechar o 5-stack. Entra no lobby, liga o micro e traz a mira de ontem.</p>
+
+    <div class="info">
+      <div><b>Hoje</b><small>Quando</small></div>
+      <div><b>5v5</b><small>Premier</small></div>
+      <div><b>Mirage</b><small>Mapa</small></div>
+    </div>
+
+    <div class="slots" id="slots">
+      <div class="slot on">goatpiti</div>
+      <div class="slot">livre</div>
+      <div class="slot">livre</div>
+      <div class="slot">livre</div>
+      <div class="slot">livre</div>
+    </div>
+    <p class="bench" id="bench" hidden></p>
+
+    <div class="buttons" id="buttons">
+      <button id="sim" type="button">Bora, entro</button>
+      <button id="nao" type="button">Não<span class="taunt" id="taunt">És um corno</span></button>
+    </div>
+
+    <form class="join" id="join" hidden>
+      <label for="nick">O teu nick</label>
+      <div class="row">
+        <input id="nick" maxlength="20" autocomplete="off" placeholder="ex: s1mple_de_odivelas" required>
+        <button type="submit" id="go">Entrar</button>
+      </div>
+      <small class="err" id="err" hidden></small>
+    </form>
+
+    <div class="done" id="done">
+      <b id="doneTitle">Lobby aceite</b>
+      <span id="doneText">Já estás no 5-stack. Abre a Steam e espera pelo invite.</span>
+    </div>
+  </main>
+
+  <section class="roster" aria-live="polite">
+    <div class="roster-head"><span>Quem já entrou</span><span id="count">0</span></div>
+    <ol id="roster"><li class="empty">Ainda ninguém. Manda o link à malta.</li></ol>
+  </section>
+
+  <footer>de_convite · tick 128</footer>
+</div>
+
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, doc, setDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAC-98rCpkDUcT_u9qL1jcmgf2sXgsR37c",
+  authDomain: "convite-cs-goatpiti.firebaseapp.com",
+  projectId: "convite-cs-goatpiti",
+  storageBucket: "convite-cs-goatpiti.firebasestorage.app",
+  messagingSenderId: "136811541007",
+  appId: "1:136811541007:web:e96f94ec9ffc575939297a"
+};
+const db = getFirestore(initializeApp(firebaseConfig));
+const lobby = collection(db, "lobby");
+
+const $ = id => document.getElementById(id);
+const taunts = ["És um corno","Bot de merda","Silver para sempre","Vai jogar Valorant","A tua avó tem mais HS","Medo do eco round?","Desinstala, sff","Corno e sem mira"];
+const nao = $('nao'), taunt = $('taunt'), feed = $('feed'), sim = $('sim');
+let i = 0, hideTimer;
+
+function kill(a, w, v, me){
+  const el = document.createElement('div');
+  el.className = 'kill' + (me ? ' me' : '');
+  for (const [c, t] of [['a',a],['w',w],['v',v]]){ const s = document.createElement('span'); s.className = c; s.textContent = t; el.append(s); }
+  feed.prepend(el);
+  while (feed.children.length > 4) feed.lastChild.remove();
+}
+function showTaunt(){
+  taunt.textContent = taunts[i % taunts.length]; i++;
+  taunt.classList.add('show');
+  if (i % 2 === 0) kill('goatpiti', '[AWP] ⌖', 'tu (por dizer não)', true);
+}
+function flee(){
+  const W = document.documentElement.clientWidth, H = window.innerHeight;
+  const b = nao.getBoundingClientRect(), pad = 16;
+  const maxX = W - b.width - pad, maxY = H - b.height - pad;
+  let x, y, tries = 0;
+  do { x = pad + Math.random() * (maxX - pad); y = pad + Math.random() * (maxY - pad); tries++; }
+  while (Math.hypot(x - b.left, y - b.top) < Math.min(W, H) * 0.4 && tries < 30);
+  nao.classList.add('fled'); nao.style.left = x + 'px'; nao.style.top = y + 'px';
+  taunt.classList.toggle('below', y < 60);
+  taunt.style.right = x < W / 2 ? 'auto' : '0';
+  taunt.style.left = x < W / 2 ? '0' : 'auto';
+}
+function dodge(e){
+  if (e && e.type === 'touchstart') e.preventDefault();
+  showTaunt(); flee();
+  clearTimeout(hideTimer); hideTimer = setTimeout(() => taunt.classList.remove('show'), 1400);
+}
+nao.addEventListener('mouseenter', dodge);
+nao.addEventListener('focus', dodge);
+nao.addEventListener('touchstart', dodge, {passive:false});
+nao.addEventListener('click', e => { e.preventDefault(); dodge(); kill('goatpiti','[Deagle] ⌖','a tua desculpa',true); });
+
+// ---- Lobby guardado no Firebase ----
+let me = null, myNick = null, players = [], known = null;
+try {
+  const saved = JSON.parse(localStorage.getItem('cs-lobby') || 'null');
+  if (saved && saved.id){ me = saved.id; myNick = saved.n; }
+} catch(x){}
+
+function render(){
+  const names = ['goatpiti', ...players.map(p => p.nick)];
+  [...$('slots').children].forEach((c, k) => { const n = names[k]; c.className = 'slot' + (n ? ' on' : ''); c.textContent = n || 'livre'; });
+  const extra = names.slice(5);
+  $('bench').hidden = !extra.length;
+  $('bench').textContent = extra.length ? 'No banco: ' + extra.join(', ') : '';
+  $('count').textContent = players.length + (players.length === 1 ? ' jogador' : ' jogadores');
+  const ros = $('roster'); ros.replaceChildren();
+  if (!players.length){ const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'Ainda ninguém. Manda o link à malta.'; ros.append(li); }
+  players.forEach(p => {
+    const li = document.createElement('li'); if (p.id === me) li.className = 'you';
+    const a = document.createElement('span'); a.className = 'n'; a.textContent = p.nick;
+    const t = document.createElement('span'); t.className = 't';
+    t.textContent = p.at ? 'entrou às ' + new Date(p.at).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'}) : '';
+    li.append(a, t); ros.append(li);
+  });
+  if (me && players.some(p => p.id === me)){
+    $('buttons').hidden = true; $('join').hidden = true;
+    $('done').classList.add('show');
+    $('doneTitle').textContent = 'Estás dentro, ' + (players.find(p => p.id === me).nick);
+  }
+}
+
+onSnapshot(query(lobby, orderBy('at')), snap => {
+  const list = snap.docs.map(d => ({ id: d.id, nick: String(d.data().nick || '???').slice(0, 20), at: Number(d.data().at) || 0 }));
+  if (known) list.filter(p => !known.has(p.id) && p.id !== me).forEach(p => kill(p.nick, 'entrou no', 'lobby', false));
+  known = new Set(list.map(p => p.id));
+  players = list; render();
+}, () => { $('count').textContent = 'offline'; });
+
+function showErr(t){ $('err').textContent = t; $('err').hidden = false; }
+
+sim.addEventListener('click', () => { $('buttons').hidden = true; $('join').hidden = false; $('nick').focus(); });
+
+$('join').addEventListener('submit', async e => {
+  e.preventDefault();
+  const n = $('nick').value.trim().slice(0, 20);
+  if (!n) return showErr('Escreve um nick.');
+  if (n.toLowerCase() === 'goatpiti') return showErr('Só há um goatpiti. Escolhe outro.');
+  if (players.some(p => p.nick.toLowerCase() === n.toLowerCase())) return showErr('Esse nick já está no lobby.');
+  $('err').hidden = true; $('go').disabled = true;
+  const id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2)).replace(/-/g, '');
+  try {
+    await setDoc(doc(lobby, id), { nick: n, at: Date.now() });
+    me = id; myNick = n;
+    try { localStorage.setItem('cs-lobby', JSON.stringify({ id, n })); } catch(x){}
+    kill(n, '[M4A1-S] ⌖', 'as desculpas', false);
+    render();
+  } catch(x){
+    showErr('Não deu para entrar. Verifica a net e tenta outra vez.');
+  }
+  $('go').disabled = false;
+});
+
+setTimeout(() => kill('goatpiti', '[AK-47] ⌖', 'o tédio de sábado', false), 400);
+setTimeout(() => kill('CT', 'plantou', 'o convite', false), 1300);
+</script>
+</body>
+</html>
